@@ -102,8 +102,13 @@ jobs:
 
       - run: npm ci
 
-      - name: Install Playwright
+      - name: Install Playwright (Linux)
+        if: runner.os == 'Linux'
         run: npx playwright install --with-deps
+
+      - name: Install Playwright (macOS/Windows)
+        if: runner.os != 'Linux'
+        run: npx playwright install
 
       - name: Run UI tests
         run: npm run test:ui
