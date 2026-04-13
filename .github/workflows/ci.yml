@@ -201,7 +201,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  notify:
+    notify:
     name: notify
     needs: [unit-tests, api-tests, ui-tests, allure-report]
     if: always()
@@ -214,6 +214,7 @@ jobs:
           echo "api-tests: ${{ needs.api-tests.result }}"
           echo "ui-tests: ${{ needs.ui-tests.result }}"
           echo "allure-report: ${{ needs.allure-report.result }}"
+
           if [ "${{ needs.unit-tests.result }}" = "success" ] && \
              [ "${{ needs.api-tests.result }}" = "success" ] && \
              [ "${{ needs.ui-tests.result }}" = "success" ] && \
@@ -222,24 +223,23 @@ jobs:
           else
             echo "result_message=Some tests failed" >> $GITHUB_OUTPUT
           fi
-      - - name: Send Telegram notification
-  if: always()
-  - name: Send Telegram notification
-  if: always()
-  env:
-    TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-    TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-  run: |
-    if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-      echo "Telegram secrets not set"
-      exit 0
-    fi
 
-    MESSAGE="CI RESULT: ${{ steps.status.outputs.result_message }}
+      - name: Send Telegram notification
+        if: always()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram secrets not set"
+            exit 0
+          fi
+
+          MESSAGE="CI RESULT: ${{ steps.status.outputs.result_message }}
 Repository: ${{ github.repository }}
 Branch: ${{ github.ref_name }}
 Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-    curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-      -d chat_id="$TELEGRAM_CHAT_ID" \
-      -d text="$MESSAGE"
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="$TELEGRAM_CHAT_ID" \
+            -d text="$MESSAGE"
