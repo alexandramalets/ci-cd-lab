@@ -24,204 +24,106 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Install actionlint
         run: |
           curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash
           sudo mv ./actionlint /usr/local/bin/actionlint
-      - name: Validate GitHub Actions workflow
+
+      - name: Validate workflow
         run: actionlint -color
 
   unit-tests:
     name: unit-tests (${{ matrix.os }}, Node ${{ matrix.node-version }})
     needs: workflow-lint
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: [18, 20, 22]
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
-      - name: Cache node_modules
-        id: cache-node-modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
-      - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: npm ci
+
+      - run: npm ci
+
       - name: Run unit tests
         run: npm run test:unit
-      - name: Upload Allure results (unit)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-unit-${{ runner.os }}-${{ matrix.node-version }}
-          path: allure-results/
-          if-no-files-found: warn
 
   api-tests:
     name: api-tests (${{ matrix.os }}, Node ${{ matrix.node-version }})
     needs: workflow-lint
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: [18, 20, 22]
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
-      - name: Cache node_modules
-        id: cache-node-modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
-      - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: npm ci
+
+      - run: npm ci
+
       - name: Run API tests
         run: npm run test:api
-      - name: Upload Allure results (api)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-api-${{ runner.os }}-${{ matrix.node-version }}
-          path: allure-results/
-          if-no-files-found: warn
 
   ui-tests:
     name: ui-tests (${{ matrix.os }}, Node ${{ matrix.node-version }})
     needs: workflow-lint
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: [18, 20, 22]
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
-      - name: Cache node_modules
-        id: cache-node-modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
-      - name: Cache Playwright browsers (Linux)
-        id: cache-playwright-linux
-        if: runner.os == 'Linux'
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - name: Cache Playwright browsers (macOS)
-        id: cache-playwright-macos
-        if: runner.os == 'macOS'
-        uses: actions/cache@v4
-        with:
-          path: ~/Library/Caches/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - name: Cache Playwright browsers (Windows)
-        id: cache-playwright-windows
-        if: runner.os == 'Windows'
-        uses: actions/cache@v4
-        with:
-          path: ~\AppData\Local\ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-      - name: Install dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: npm ci
-      - name: Install Playwright Chromium (Linux)
-        if: runner.os == 'Linux'
-        run: npx playwright install chromium --with-deps
-      - name: Install Playwright Chromium (non-Linux)
-        if: runner.os != 'Linux'
-        run: npx playwright install chromium
+
+      - run: npm ci
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+
       - name: Run UI tests
         run: npm run test:ui
-      - name: Upload Allure results (ui)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-ui-${{ runner.os }}-${{ matrix.node-version }}
-          path: allure-results/
-          if-no-files-found: warn
 
-  allure-report:
-    name: allure-report
+  notify:
+    name: notify
     needs: [unit-tests, api-tests, ui-tests]
     if: always()
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Download all Allure result artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: allure-*
-          path: allure-results
-          merge-multiple: true
-      - name: Generate Allure report
-        run: npm run allure:generate
-      - name: Upload Allure HTML report (artifact)
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-report-html
-          path: allure-report/
-      - name: Configure GitHub Pages
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/configure-pages@v4
-      - name: Upload static site to Pages
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: allure-report
-      - name: Deploy to GitHub Pages
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        id: deployment
-        uses: actions/deploy-pages@v4
 
-    notify:
-    name: notify
-    needs: [unit-tests, api-tests, ui-tests, allure-report]
-    if: always()
-    runs-on: ubuntu-latest
     steps:
-      - name: Report workflow status
+      - name: Build status
         id: status
         run: |
-          echo "unit-tests: ${{ needs.unit-tests.result }}"
-          echo "api-tests: ${{ needs.api-tests.result }}"
-          echo "ui-tests: ${{ needs.ui-tests.result }}"
-          echo "allure-report: ${{ needs.allure-report.result }}"
-
           if [ "${{ needs.unit-tests.result }}" = "success" ] && \
              [ "${{ needs.api-tests.result }}" = "success" ] && \
-             [ "${{ needs.ui-tests.result }}" = "success" ] && \
-             [ "${{ needs.allure-report.result }}" = "success" ]; then
-            echo "result_message=All tests passed" >> $GITHUB_OUTPUT
+             [ "${{ needs.ui-tests.result }}" = "success" ]; then
+            echo "msg=✅ All tests passed" >> $GITHUB_OUTPUT
           else
-            echo "result_message=Some tests failed" >> $GITHUB_OUTPUT
+            echo "msg=❌ Some tests failed" >> $GITHUB_OUTPUT
           fi
 
       - name: Send Telegram notification
@@ -231,14 +133,17 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-            echo "Telegram secrets not set"
+            echo "No telegram secrets"
             exit 0
           fi
 
-          MESSAGE="CI RESULT: ${{ steps.status.outputs.result_message }}
+          MESSAGE=$(cat <<EOF
+${{ steps.status.outputs.msg }}
 Repository: ${{ github.repository }}
 Branch: ${{ github.ref_name }}
-Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+EOF
+)
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="$TELEGRAM_CHAT_ID" \
