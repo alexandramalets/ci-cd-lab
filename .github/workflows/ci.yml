@@ -23,7 +23,7 @@ jobs:
     name: workflow-lint (actionlint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install actionlint
         run: |
@@ -45,9 +45,9 @@ jobs:
         node-version: [18, 20, 22]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -69,9 +69,9 @@ jobs:
         node-version: [18, 20, 22]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -93,9 +93,9 @@ jobs:
         node-version: [18, 20, 22]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -123,9 +123,9 @@ jobs:
       - name: Build status
         id: status
         run: |
-          if [ "${{ needs.unit-tests.result }}" = "success" ] && \
-             [ "${{ needs.api-tests.result }}" = "success" ] && \
-             [ "${{ needs.ui-tests.result }}" = "success" ]; then
+          if [ "${{ needs['unit-tests'].result }}" = "success" ] && \
+             [ "${{ needs['api-tests'].result }}" = "success" ] && \
+             [ "${{ needs['ui-tests'].result }}" = "success" ]; then
             echo "msg=✅ All tests passed" >> $GITHUB_OUTPUT
           else
             echo "msg=❌ Some tests failed" >> $GITHUB_OUTPUT
